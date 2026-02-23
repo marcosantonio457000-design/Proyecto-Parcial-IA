@@ -1,7 +1,7 @@
 # Proyecto-parcial-IA
 
-## Nombre
+## Nombre: Marcos Antonio Alfonseca Guerrero
 
-## Matrícula
+## Matrícula: 23-SISN-2-013
 
-## Proyecto
+## Proyecto: 
