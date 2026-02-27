@@ -27,7 +27,11 @@ GRIS = (100, 100, 100)
 BLANCO = (230, 230, 230)
 VERDE = (50, 200, 50)
 AMARILLO = (255, 255, 0)
+fuente = pygame.font.SysFont("arial", 40)
 
+def dibujar_texto(texto, x, y):
+    render = fuente.render(texto, True, BLANCO)
+    PANTALLA.blit(render, (x, y))
 # ---------------- VARIABLES ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
 numero_sala = 1
 jugador_tiene_tarjeta = False
@@ -158,7 +162,7 @@ class Jugador:
 
     def mover(self, teclas):
         if self.cooldown > 0:
-            self.cooldown -= 1
+            self.cooldown -= 0.5
             return
 
         dx, dy = 0, 0
@@ -276,7 +280,7 @@ class Enemigo:
         self.vivo = True
         self.tiene_tarjeta = tiene_tarjeta
         self.cooldown = 0
-        self.arbol = None  # nuevo
+        self.arbol = None  
 
     # -------- Construcción del árbol -------- Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013 
     def construir_arbol(self, jugador):
@@ -302,7 +306,7 @@ class Enemigo:
             return
 
         if self.cooldown > 0:
-            self.cooldown -= 0.1
+            self.cooldown -= 0.01
             return
 
         # Construye el árbol solo una vez
@@ -461,7 +465,6 @@ while True:
         jugador_tiene_tarjeta = True
         tarjeta = None
         print("TARJETA OBTENIDA")
-
     # --------------Dibujar-------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
     dibujar_mapa()
 
@@ -487,5 +490,4 @@ while True:
 
     for bala in balas:
         bala.dibujar()
-
     pygame.display.flip()
