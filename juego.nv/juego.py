@@ -19,6 +19,7 @@ pygame.display.set_caption("Laboratorio Completo")
 
 RELOJ = pygame.time.Clock()
 
+
 # ----------------Colores-------------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
 NEGRO = (20, 20, 20)
 AZUL = (50, 150, 255)
@@ -159,10 +160,11 @@ class Jugador:
         self.x = 1
         self.y = 1
         self.cooldown = 0
-
+        self.vida = 100
+        self.invulnerable = 0
     def mover(self, teclas):
         if self.cooldown > 0:
-            self.cooldown -= 0.5
+            self.cooldown -= 0.7
             return
 
         dx, dy = 0, 0
@@ -274,13 +276,15 @@ class AccionPatrullar(NodoBT):
         return False
 class Enemigo:
    
-    def __init__(self, x, y, tiene_tarjeta=False):
+    def __init__(self, x, y, tiene_tarjeta=False, vida=1, es_jefe=False):
         self.x = x
         self.y = y
         self.vivo = True
         self.tiene_tarjeta = tiene_tarjeta
         self.cooldown = 0
-        self.arbol = None  
+        self.arbol = None
+        self.vida = vida
+        self.es_jefe = es_jefe 
 
     # -------- Construcción del árbol -------- Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013 
     def construir_arbol(self, jugador):
@@ -320,7 +324,11 @@ class Enemigo:
         self.cooldown = 0.1
 
     def dibujar(self):
-        if self.vivo:
+     if self.vivo:
+        if self.es_jefe:
+            pygame.draw.rect(PANTALLA, (150, 0, 150),
+                (self.x*TAM_CELDA, self.y*TAM_CELDA, TAM_CELDA, TAM_CELDA))
+        else:
             pygame.draw.rect(PANTALLA, ROJO,
                 (self.x*TAM_CELDA, self.y*TAM_CELDA, TAM_CELDA, TAM_CELDA))
 
@@ -393,12 +401,56 @@ def generar_sala_final():
     enemigos = []
     puerta = None
     computadora = (COLUMNAS//2, FILAS//2)
+# ---------------- MENU ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
+def menu_inicial():
+    esperando = True
 
+    titulo_fuente = pygame.font.SysFont("arial", 70)
+    texto_fuente = pygame.font.SysFont("arial", 35) 
+    while esperando:
+        RELOJ.tick(60)
+        PANTALLA.fill((10, 10, 10))
+
+        titulo = titulo_fuente.render("LABORATORIO", True, BLANCO)
+        texto = texto_fuente.render("Presiona ENTER para jugar", True, BLANCO)
+
+        PANTALLA.blit(titulo, (ANCHO//2 - titulo.get_width()//2, 200))
+        PANTALLA.blit(texto, (ANCHO//2 - texto.get_width()//2, 320))
+
+        pygame.display.flip()
+
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            if evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_RETURN:
+                    esperando = False
+                if evento.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
 # ---------------- INICIO ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
 jugador = Jugador()
 generar_sala()
+menu_inicial()
+#----------------- BARRA DE VIDA ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
+def dibujar_barra_vida(jugador):
+    ancho_barra = 300
+    alto_barra = 25
+    x = 20
+    y = 20
 
-# ---------------- LOOP ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
+    # Fondo
+    pygame.draw.rect(PANTALLA, (80, 0, 0), (x, y, ancho_barra, alto_barra))
+
+    # Vida actual
+    vida_actual = (jugador.vida / 100) * ancho_barra
+    pygame.draw.rect(PANTALLA, (0, 200, 0), (x, y, vida_actual, alto_barra))
+
+    # Borde
+    pygame.draw.rect(PANTALLA, BLANCO, (x, y, ancho_barra, alto_barra), 2)
+# ---------------- LOOP  ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
 while True:
 
     RELOJ.tick(60)
@@ -432,15 +484,24 @@ while True:
     if puerta and (jugador.x, jugador.y) == puerta:
         numero_sala += 1
         jugador.x, jugador.y = 1, 1
-        if numero_sala < 4:
+        if numero_sala < 7:
             generar_sala()
         else:
             generar_sala_final()
 
     # -------------Actualizar enemigos---------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
     for e in enemigos:
-        e.actualizar(jugador)
+     e.actualizar(jugador)
 
+    # Daño por contacto
+    if jugador.invulnerable > 0:
+        jugador.invulnerable -= 1
+
+    for e in enemigos:
+        if e.vivo and e.x == jugador.x and e.y == jugador.y:
+            if jugador.invulnerable <= 0:
+                jugador.vida -= 5
+                jugador.invulnerable = 30
     # --------------Mover balas---------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
     for bala in balas[:]:
         bala.mover()
@@ -490,4 +551,5 @@ while True:
 
     for bala in balas:
         bala.dibujar()
+    dibujar_barra_vida(jugador)
     pygame.display.flip()
