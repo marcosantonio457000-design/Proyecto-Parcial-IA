@@ -7,19 +7,42 @@ import heapq
 pygame.init()
 
 # ---------------- CONFIGURACION----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
-TAM_CELDA = 40
-COLUMNAS = 20
-FILAS = 15
+ANCHO = 1280
+ALTO = 720
+TAM_CELDA = 45
 
-ANCHO = COLUMNAS * TAM_CELDA
-ALTO = FILAS * TAM_CELDA
+COLUMNAS = ANCHO // TAM_CELDA
+FILAS = ALTO // TAM_CELDA
 
-PANTALLA = pygame.display.set_mode((ANCHO, ALTO))
+PANTALLA = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+ANCHO, ALTO = PANTALLA.get_size()
+
+COLUMNAS = ANCHO // TAM_CELDA
+FILAS = ALTO // TAM_CELDA
+
 pygame.display.set_caption("Laboratorio Completo")
 
 RELOJ = pygame.time.Clock()
 
+# ---------------- SPRITE JUGADOR ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
+try:
+    SPRITE_JUGADOR = pygame.image.load("assets/jugador.png").convert_alpha()
+    SPRITE_JUGADOR = pygame.transform.scale(
+        SPRITE_JUGADOR, (TAM_CELDA, TAM_CELDA)
+    )
+except Exception as e:
+    print("ERROR cargando sprite del jugador:", e)
+    SPRITE_JUGADOR = None
 
+# ---------------- SPRITE ENEMIGO ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
+try:
+    SPRITE_ENEMIGO = pygame.image.load("assets/enemigo.png").convert_alpha()
+    SPRITE_ENEMIGO = pygame.transform.scale(
+        SPRITE_ENEMIGO, (TAM_CELDA + 30, TAM_CELDA + 30)
+    )
+except Exception as e:
+    print("Error cargando sprite enemigo:", e)
+    SPRITE_ENEMIGO = None
 # ----------------Colores-------------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
 NEGRO = (20, 20, 20)
 AZUL = (50, 150, 255)
@@ -183,10 +206,17 @@ class Jugador:
                 self.cooldown = 4
 
     def dibujar(self):
-        pygame.draw.rect(PANTALLA, AZUL,
-            (self.x*TAM_CELDA, self.y*TAM_CELDA, TAM_CELDA, TAM_CELDA))
-
-
+       if SPRITE_JUGADOR:
+        PANTALLA.blit(
+            SPRITE_JUGADOR,
+            (self.x * TAM_CELDA, self.y * TAM_CELDA)
+        )
+       else: 
+          pygame.draw.rect(
+            PANTALLA,
+            AZUL,
+            (self.x * TAM_CELDA, self.y * TAM_CELDA, TAM_CELDA, TAM_CELDA)
+        )
 class NodoBT:
     def ejecutar(self):
         pass
@@ -276,7 +306,7 @@ class AccionPatrullar(NodoBT):
         return False
 class Enemigo:
    
-    def __init__(self, x, y, tiene_tarjeta=False, vida=1, es_jefe=False):
+    def __init__(self, x, y, tiene_tarjeta=False, vida=1):
         self.x = x
         self.y = y
         self.vivo = True
@@ -284,7 +314,7 @@ class Enemigo:
         self.cooldown = 0
         self.arbol = None
         self.vida = vida
-        self.es_jefe = es_jefe 
+    
 
     # -------- Construcción del árbol -------- Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013 
     def construir_arbol(self, jugador):
@@ -324,14 +354,25 @@ class Enemigo:
         self.cooldown = 0.1
 
     def dibujar(self):
-     if self.vivo:
-        if self.es_jefe:
-            pygame.draw.rect(PANTALLA, (150, 0, 150),
-                (self.x*TAM_CELDA, self.y*TAM_CELDA, TAM_CELDA, TAM_CELDA))
-        else:
-            pygame.draw.rect(PANTALLA, ROJO,
-                (self.x*TAM_CELDA, self.y*TAM_CELDA, TAM_CELDA, TAM_CELDA))
+        if not self.vivo:
+            return
 
+        tamano = TAM_CELDA + 30
+
+        x_pix = self.x * TAM_CELDA - (tamano - TAM_CELDA) // 2
+        y_pix = self.y * TAM_CELDA - (tamano - TAM_CELDA) // 2
+
+        if SPRITE_ENEMIGO:
+            PANTALLA.blit(SPRITE_ENEMIGO, (x_pix, y_pix))
+        else:
+            pygame.draw.rect(
+                PANTALLA,
+                ROJO,
+                (self.x * TAM_CELDA,
+                 self.y * TAM_CELDA,
+                 TAM_CELDA,
+                 TAM_CELDA)
+            )
 
 class Bala:
     def __init__(self, inicio, destino):
@@ -411,7 +452,7 @@ def menu_inicial():
         RELOJ.tick(60)
         PANTALLA.fill((10, 10, 10))
 
-        titulo = titulo_fuente.render("LABORATORIO", True, BLANCO)
+        titulo = titulo_fuente.render("ESCAPA DEL LABORATORIO", True, BLANCO)
         texto = texto_fuente.render("Presiona ENTER para jugar", True, BLANCO)
 
         PANTALLA.blit(titulo, (ANCHO//2 - titulo.get_width()//2, 200))
