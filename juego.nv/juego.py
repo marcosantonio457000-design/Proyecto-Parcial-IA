@@ -1,48 +1,27 @@
 import pygame
 import random
 import sys
-import math
-import heapq
 
+from configuracion import *
+from SPRITES import *
+from menu import *
+from balas import *
+from clases import *
+from ia import *
 pygame.init()
 
-# ---------------- CONFIGURACION----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
-ANCHO = 1280
-ALTO = 720
-TAM_CELDA = 45
+pygame.mixer.music.load("assets/musica.mp3")
+pygame.mixer.music.set_volume(0.5)
+pygame.mixer.music.play(-1)  #Reproducir en bucle
 
-COLUMNAS = ANCHO // TAM_CELDA
-FILAS = ALTO // TAM_CELDA
+#----------------- CONTROL (JOYSTICK) ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
+pygame.joystick.init()
+joystick = None
 
-PANTALLA = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-ANCHO, ALTO = PANTALLA.get_size()
-
-COLUMNAS = ANCHO // TAM_CELDA
-FILAS = ALTO // TAM_CELDA
-
-pygame.display.set_caption("Laboratorio Completo")
-
-RELOJ = pygame.time.Clock()
-
-# ---------------- SPRITE JUGADOR ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
-try:
-    SPRITE_JUGADOR = pygame.image.load("assets/jugador.png").convert_alpha()
-    SPRITE_JUGADOR = pygame.transform.scale(
-        SPRITE_JUGADOR, (TAM_CELDA, TAM_CELDA)
-    )
-except Exception as e:
-    print("ERROR cargando sprite del jugador:", e)
-    SPRITE_JUGADOR = None
-
-# ---------------- SPRITE ENEMIGO ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
-try:
-    SPRITE_ENEMIGO = pygame.image.load("assets/enemigo.png").convert_alpha()
-    SPRITE_ENEMIGO = pygame.transform.scale(
-        SPRITE_ENEMIGO, (TAM_CELDA + 30, TAM_CELDA + 30)
-    )
-except Exception as e:
-    print("Error cargando sprite enemigo:", e)
-    SPRITE_ENEMIGO = None
+if pygame.joystick.get_count() > 0:
+    joystick = pygame.joystick.Joystick(0)
+    joystick.init()
+    print("Control conectado:", joystick.get_name())
 # ----------------Colores-------------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
 NEGRO = (20, 20, 20)
 AZUL = (50, 150, 255)
@@ -65,7 +44,13 @@ balas = []
 puerta = None
 computadora = None
 tarjeta = None
-
+mensaje_tarjeta = False
+tiempo_mensaje = 0
+mensaje_robots = False
+tiempo_mensaje_robots = 0
+mensaje_tarjeta_falta = False
+tiempo_mensaje_tarjeta_falta = 0
+mostrar_menu_final = False
 # ---------------- MAPA ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
 def generar_mapa():
     global mapa
@@ -86,317 +71,6 @@ def dibujar_mapa():
                 pygame.draw.rect(PANTALLA, GRIS,
                     (x*TAM_CELDA, y*TAM_CELDA, TAM_CELDA, TAM_CELDA))
 
-# ---------------- A* ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
-import heapq
-import time
-import math
-
-class Estado:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-
-    def Costo(self, estado_final):
-        return math.dist((self.x, self.y), (estado_final.x, estado_final.y))
-
-    def GenerarSucesores(self):
-        sucesores = []
-        movimientos = [(1,0),(-1,0),(0,1),(0,-1)]
-
-        for dx, dy in movimientos:
-            nx = self.x + dx
-            ny = self.y + dy
-
-            if 0 <= nx < COLUMNAS and 0 <= ny < FILAS:
-                if mapa[ny][nx] == 0:
-                    sucesores.append(Estado(nx, ny))
-
-        return sucesores
-
-    def __eq__(self, other):
-        return isinstance(other, Estado) and self.x == other.x and self.y == other.y
-
-    def __hash__(self):
-        return hash((self.x, self.y))
-
-
-class Nodo:
-    def __init__(self, dato, padre, costo):
-        self.dato = dato
-        self.padre = padre
-        self.costo = costo
-
-    def __lt__(self, other):
-        return self.costo < other.costo
-
-    def __eq__(self, other):
-        return isinstance(other, Nodo) and self.dato == other.dato
-
-    def __hash__(self):
-        return hash(self.dato)
-
-
-def Astar(estado_inicial, estado_final):
-    totalnodos = 1
-    nodoactual = Nodo(estado_inicial, None,
-                      estado_inicial.Costo(estado_final))
-    nodosgenerado = []
-
-    nodosvisitados = set()
-    heapq.heapify(nodosgenerado)
-
-    inicio = time.perf_counter()
-
-    while nodoactual.dato != estado_final:
-        sucesores = nodoactual.dato.GenerarSucesores()
-
-        totalnodos += len(sucesores)
-
-        for sucesor in sucesores:
-            temp = Nodo(sucesor, nodoactual,
-                        sucesor.Costo(estado_final))
-
-            if temp not in nodosvisitados:
-                heapq.heappush(nodosgenerado, temp)
-
-        nodosvisitados.add(nodoactual)
-
-        if not nodosgenerado:
-            return [], totalnodos, 0
-
-        while nodoactual in nodosvisitados:
-            nodoactual = heapq.heappop(nodosgenerado)
-
-    camino = []
-    while nodoactual:
-        camino.append(nodoactual.dato)
-        nodoactual = nodoactual.padre
-
-    camino.reverse()
-    fin = time.perf_counter()
-
-    return camino, totalnodos, fin - inicio
-
-# ---------------- CLASES ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
-class Jugador:
-    def __init__(self):
-        self.x = 1
-        self.y = 1
-        self.cooldown = 0
-        self.vida = 100
-        self.invulnerable = 0
-    def mover(self, teclas):
-        if self.cooldown > 0:
-            self.cooldown -= 0.7
-            return
-
-        dx, dy = 0, 0
-        if teclas[pygame.K_w]: dy = -1
-        if teclas[pygame.K_s]: dy = 1
-        if teclas[pygame.K_a]: dx = -1
-        if teclas[pygame.K_d]: dx = 1
-
-        nx = self.x + dx
-        ny = self.y + dy
-
-        if 0 <= nx < COLUMNAS and 0 <= ny < FILAS:
-            if mapa[ny][nx] == 0:
-                self.x = nx
-                self.y = ny
-                self.cooldown = 4
-
-    def dibujar(self):
-       if SPRITE_JUGADOR:
-        PANTALLA.blit(
-            SPRITE_JUGADOR,
-            (self.x * TAM_CELDA, self.y * TAM_CELDA)
-        )
-       else: 
-          pygame.draw.rect(
-            PANTALLA,
-            AZUL,
-            (self.x * TAM_CELDA, self.y * TAM_CELDA, TAM_CELDA, TAM_CELDA)
-        )
-class NodoBT:
-    def ejecutar(self):
-        pass
-
-
-class Selector(NodoBT):
-    def __init__(self, hijos):
-        self.hijos = hijos
-
-    def ejecutar(self):
-        for hijo in self.hijos:
-            if hijo.ejecutar():
-                return True
-        return False
-
-
-class Sequence(NodoBT):
-    def __init__(self, hijos):
-        self.hijos = hijos
-
-    def ejecutar(self):
-        for hijo in self.hijos:
-            if not hijo.ejecutar():
-                return False
-        return True
-
-
-class CondicionJugadorCerca(NodoBT):
-    def __init__(self, enemigo, jugador, rango=6):
-        self.enemigo = enemigo
-        self.jugador = jugador
-        self.rango = rango
-
-    def ejecutar(self):
-        distancia = math.dist(
-            (self.enemigo.x, self.enemigo.y),
-            (self.jugador.x, self.jugador.y)
-        )
-        return distancia < self.rango
-
-
-class AccionPerseguir(NodoBT):
-    def __init__(self, enemigo, jugador):
-        self.enemigo = enemigo
-        self.jugador = jugador
-
-    def ejecutar(self):
-        estado_inicio = Estado(self.enemigo.x, self.enemigo.y)
-        estado_objetivo = Estado(self.jugador.x, self.jugador.y)
-
-        camino, _, _ = Astar(estado_inicio, estado_objetivo)
-
-        if len(camino) > 1:
-            siguiente = camino[1]
-            self.enemigo.x = siguiente.x
-            self.enemigo.y = siguiente.y
-            return True
-
-        return False
-
-
-class AccionPatrullar(NodoBT):
-    def __init__(self, enemigo):
-        self.enemigo = enemigo
-
-    def ejecutar(self):
-        vecinos = [
-            (self.enemigo.x+1, self.enemigo.y),
-            (self.enemigo.x-1, self.enemigo.y),
-            (self.enemigo.x, self.enemigo.y+1),
-            (self.enemigo.x, self.enemigo.y-1)
-        ]
-
-        vecinos_validos = [
-            v for v in vecinos
-            if 0 <= v[0] < COLUMNAS and
-               0 <= v[1] < FILAS and
-               mapa[v[1]][v[0]] == 0
-        ]
-
-        if vecinos_validos:
-            nx, ny = random.choice(vecinos_validos)
-            self.enemigo.x = nx
-            self.enemigo.y = ny
-            return True
-
-        return False
-class Enemigo:
-   
-    def __init__(self, x, y, tiene_tarjeta=False, vida=1):
-        self.x = x
-        self.y = y
-        self.vivo = True
-        self.tiene_tarjeta = tiene_tarjeta
-        self.cooldown = 0
-        self.arbol = None
-        self.vida = vida
-    
-
-    # -------- Construcción del árbol -------- Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013 
-    def construir_arbol(self, jugador):
-
-        condicion = CondicionJugadorCerca(self, jugador)
-
-        secuencia_perseguir = Sequence([
-            condicion,
-            AccionPerseguir(self, jugador)
-        ])
-
-        patrullar = AccionPatrullar(self)
-
-        self.arbol = Selector([
-            secuencia_perseguir,
-            patrullar
-        ])
-
-    
-    def actualizar(self, jugador):
-
-        if not self.vivo:
-            return
-
-        if self.cooldown > 0:
-            self.cooldown -= 0.01
-            return
-
-        # Construye el árbol solo una vez
-        if self.arbol is None:
-            self.construir_arbol(jugador)
-
-       
-        self.arbol.ejecutar()
-
-        
-        self.cooldown = 0.1
-
-    def dibujar(self):
-        if not self.vivo:
-            return
-
-        tamano = TAM_CELDA + 30
-
-        x_pix = self.x * TAM_CELDA - (tamano - TAM_CELDA) // 2
-        y_pix = self.y * TAM_CELDA - (tamano - TAM_CELDA) // 2
-
-        if SPRITE_ENEMIGO:
-            PANTALLA.blit(SPRITE_ENEMIGO, (x_pix, y_pix))
-        else:
-            pygame.draw.rect(
-                PANTALLA,
-                ROJO,
-                (self.x * TAM_CELDA,
-                 self.y * TAM_CELDA,
-                 TAM_CELDA,
-                 TAM_CELDA)
-            )
-
-class Bala:
-    def __init__(self, inicio, destino):
-        self.x = inicio[0]
-        self.y = inicio[1]
-        self.vel = 10
-
-        dx = destino[0] - self.x
-        dy = destino[1] - self.y
-        dist = math.hypot(dx, dy)
-
-        self.dir_x = dx / dist
-        self.dir_y = dy / dist
-
-        self.rect = pygame.Rect(self.x, self.y, 6, 6)
-
-    def mover(self):
-        self.x += self.dir_x * self.vel
-        self.y += self.dir_y * self.vel
-        self.rect.x = int(self.x)
-        self.rect.y = int(self.y)
-
-    def dibujar(self):
-        pygame.draw.rect(PANTALLA, BLANCO, self.rect)
 
 # ---------------- GENERAR SALAS ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
 def generar_puerta():
@@ -442,35 +116,7 @@ def generar_sala_final():
     enemigos = []
     puerta = None
     computadora = (COLUMNAS//2, FILAS//2)
-# ---------------- MENU ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
-def menu_inicial():
-    esperando = True
 
-    titulo_fuente = pygame.font.SysFont("arial", 70)
-    texto_fuente = pygame.font.SysFont("arial", 35) 
-    while esperando:
-        RELOJ.tick(60)
-        PANTALLA.fill((10, 10, 10))
-
-        titulo = titulo_fuente.render("ESCAPA DEL LABORATORIO", True, BLANCO)
-        texto = texto_fuente.render("Presiona ENTER para jugar", True, BLANCO)
-
-        PANTALLA.blit(titulo, (ANCHO//2 - titulo.get_width()//2, 200))
-        PANTALLA.blit(texto, (ANCHO//2 - texto.get_width()//2, 320))
-
-        pygame.display.flip()
-
-        for evento in pygame.event.get():
-            if evento.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-
-            if evento.type == pygame.KEYDOWN:
-                if evento.key == pygame.K_RETURN:
-                    esperando = False
-                if evento.key == pygame.K_ESCAPE:
-                    pygame.quit()
-                    sys.exit()
 # ---------------- INICIO ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
 jugador = Jugador()
 generar_sala()
@@ -485,7 +131,7 @@ def dibujar_barra_vida(jugador):
     # Fondo
     pygame.draw.rect(PANTALLA, (80, 0, 0), (x, y, ancho_barra, alto_barra))
 
-    # Vida actual
+    # Vida 
     vida_actual = (jugador.vida / 100) * ancho_barra
     pygame.draw.rect(PANTALLA, (0, 200, 0), (x, y, vida_actual, alto_barra))
 
@@ -495,31 +141,109 @@ def dibujar_barra_vida(jugador):
 while True:
 
     RELOJ.tick(60)
-    PANTALLA.fill(NEGRO)
-
+    if FONDO:
+      PANTALLA.blit(FONDO, (0, 0))
+    else:
+     PANTALLA.fill(NEGRO)
+      
+    boton_menu = pygame.Rect(ANCHO//2 - 150, ALTO//2 - 40, 300, 60)
+    boton_salir = pygame.Rect(ANCHO//2 - 150, ALTO//2 + 40, 300, 60)
+     
     for evento in pygame.event.get():
         if evento.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
 
         if evento.type == pygame.MOUSEBUTTONDOWN:
-            mouse_pos = pygame.mouse.get_pos()
-            jugador_pix = (jugador.x*TAM_CELDA + TAM_CELDA//2,
-                           jugador.y*TAM_CELDA + TAM_CELDA//2)
-            balas.append(Bala(jugador_pix, mouse_pos))
+
+                mouse_pos = pygame.mouse.get_pos()
+
+                if mostrar_menu_final:
+
+                    if boton_menu.collidepoint(mouse_pos):
+                       estado = "menu"
+
+                    if boton_salir.collidepoint(mouse_pos):
+                        pygame.quit()
+                        sys.exit()
+
+                else:
+                    jugador_pix = (
+                        jugador.x*TAM_CELDA + TAM_CELDA/2,
+                        jugador.y*TAM_CELDA + TAM_CELDA/2
+                    )
+
+                    balas.append(Bala(jugador_pix, mouse_pos))
 
         if evento.type == pygame.KEYDOWN:
             if evento.key == pygame.K_e and computadora:
                 if (jugador.x, jugador.y) == computadora:
-                    if jugador_tiene_tarjeta:
+
+                    if jugador.tiene_tarjeta:
                         for e in enemigos:
-                            e.vivo = False
-                        print("ROBOTS DESACTIVADOS")
+                         e.vivo = False
+
+                        mensaje_robots = True
+                        tiempo_mensaje_robots = pygame.time.get_ticks()
+                        mostrar_menu_final = True
+
                     else:
-                        print("NECESITAS LA TARJETA")
+                        mensaje_tarjeta_falta = True
+                        tiempo_mensaje_tarjeta_falta = pygame.time.get_ticks()
+
+        if evento.type == pygame.JOYBUTTONDOWN:
+            if evento.button == 0:  # botón 1 del joystick
+
+                mouse_pos = pygame.mouse.get_pos()
+
+                jugador_pix = (
+                    jugador.x*TAM_CELDA + TAM_CELDA/2,
+                    jugador.y*TAM_CELDA + TAM_CELDA/2
+                    )
+
+                balas.append(Bala(jugador_pix, mouse_pos))
+
+        if evento.type == pygame.JOYBUTTONDOWN:
+            if evento.button == 1:
+
+                if computadora:
+                    if abs(jugador.x - computadora[0]) <= 1 and abs(jugador.y - computadora[1]) <= 1:
+
+                        if jugador.tiene_tarjeta:
+                            for e in enemigos:
+                                e.vivo = False
+
+                            mensaje_robots = True
+                            tiempo_mensaje_robots = pygame.time.get_ticks()
+                            mostrar_menu_final = True
 
     teclas = pygame.key.get_pressed()
-    jugador.mover(teclas)
+    jugador.mover(teclas, mapa)
+
+    if joystick:
+        eje_x = joystick.get_axis(0)
+        eje_y = joystick.get_axis(1)
+
+        dx = 0
+        dy = 0
+
+        if eje_x > 0.5:
+            dx = 1
+        elif eje_x < -0.5:
+            dx = -1
+
+        if eje_y > 0.5:
+            dy = 1
+        elif eje_y < -0.5:
+            dy = -1
+
+        nx = jugador.x + dx
+        ny = jugador.y + dy
+
+    if 0 <= nx < COLUMNAS and 0 <= ny < FILAS:
+        if mapa[ny][nx] == 0:
+            jugador.x = nx
+            jugador.y = ny
 
     # ------------Cambio de sala------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
     if puerta and (jugador.x, jugador.y) == puerta:
@@ -532,7 +256,7 @@ while True:
 
     # -------------Actualizar enemigos---------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
     for e in enemigos:
-     e.actualizar(jugador)
+     e.actualizar(jugador, mapa)
 
     # Daño por contacto
     if jugador.invulnerable > 0:
@@ -564,26 +288,50 @@ while True:
 
     # --------------Recoger tarjeta----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
     if tarjeta and (jugador.x, jugador.y) == tarjeta:
-        jugador_tiene_tarjeta = True
+        jugador.tiene_tarjeta = True
         tarjeta = None
-        print("TARJETA OBTENIDA")
+        mensaje_tarjeta = True
+        tiempo_mensaje = pygame.time.get_ticks()
     # --------------Dibujar-------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
     dibujar_mapa()
 
     if puerta:
-        pygame.draw.rect(PANTALLA, VERDE,
-            (puerta[0]*TAM_CELDA, puerta[1]*TAM_CELDA,
-             TAM_CELDA, TAM_CELDA))
+        tamano_puerta = TAM_CELDA + 50
+
+        x_pix = puerta[0] * TAM_CELDA - (tamano_puerta - TAM_CELDA) // 2
+        y_pix = puerta[1] * TAM_CELDA - (tamano_puerta - TAM_CELDA) // 2
+
+    if SPRITE_PUERTA:
+        PANTALLA.blit(SPRITE_PUERTA, (x_pix, y_pix))
+    else:
+        pygame.draw.rect(
+            PANTALLA,
+            VERDE,
+            (x_pix, y_pix, TAM_CELDA, TAM_CELDA)
+        )
 
     if tarjeta:
-        pygame.draw.rect(PANTALLA, AMARILLO,
-            (tarjeta[0]*TAM_CELDA, tarjeta[1]*TAM_CELDA,
-             TAM_CELDA, TAM_CELDA))
+       x_pix = tarjeta[0] * TAM_CELDA
+       y_pix = tarjeta[1] * TAM_CELDA
+
+       if SPRITE_TARJETA:
+        PANTALLA.blit(SPRITE_TARJETA, (x_pix, y_pix))
+       else:
+        pygame.draw.rect(
+            PANTALLA,
+            AMARILLO,
+            (x_pix, y_pix, TAM_CELDA, TAM_CELDA)
+        )
 
     if computadora:
-        pygame.draw.rect(PANTALLA, (150,150,255),
-            (computadora[0]*TAM_CELDA, computadora[1]*TAM_CELDA,
-             TAM_CELDA, TAM_CELDA))
+        x = computadora[0]*TAM_CELDA
+        y = computadora[1]*TAM_CELDA
+
+        PANTALLA.blit(SPRITE_COMPUTADORA, (x, y))
+
+        if abs(jugador.x - computadora[0]) <= 1 and abs(jugador.y - computadora[1]) <= 1:
+            texto = fuente.render("Presiona E para usar", True, BLANCO)
+            PANTALLA.blit(texto, (x-40, y-20))
 
     jugador.dibujar()
 
@@ -593,4 +341,44 @@ while True:
     for bala in balas:
         bala.dibujar()
     dibujar_barra_vida(jugador)
+
+    if mensaje_tarjeta:
+        texto = fuente.render("TARJETA OBTENIDA", True, AMARILLO)
+        rect = texto.get_rect(center=(ANCHO//2, 50))
+        PANTALLA.blit(texto, rect)
+
+    if pygame.time.get_ticks() - tiempo_mensaje > 3000:
+        mensaje_tarjeta = False
+
+        if mensaje_robots:
+            texto = fuente.render("LOS ROBOTS HAN SIDO DESACTIVADOS", True, VERDE)
+            rect = texto.get_rect(center=(ANCHO//2, 80))
+            PANTALLA.blit(texto, rect)
+
+            if pygame.time.get_ticks() - tiempo_mensaje_robots > 3000:
+               mensaje_robots = False
+
+        if mensaje_tarjeta_falta:
+            texto = fuente.render("NECESITAS LA TARJETA", True, ROJO)
+            rect = texto.get_rect(center=(ANCHO//2, 120))
+            PANTALLA.blit(texto, rect)
+
+            if pygame.time.get_ticks() - tiempo_mensaje_tarjeta_falta > 3000:
+               mensaje_tarjeta_falta = False
+    
+
+               if mostrar_menu_final:
+
+                  boton_menu = pygame.Rect(ANCHO//2 - 150, ALTO//2 - 40, 300, 60)
+                  boton_salir = pygame.Rect(ANCHO//2 - 150, ALTO//2 + 40, 300, 60)
+
+                  pygame.draw.rect(PANTALLA, VERDE, boton_menu)
+                  pygame.draw.rect(PANTALLA, ROJO, boton_salir)
+
+                  texto_menu = fuente.render("VOLVER AL MENU", True, NEGRO)
+                  texto_salir = fuente.render("SALIR", True, NEGRO)
+
+                  PANTALLA.blit(texto_menu, texto_menu.get_rect(center=boton_menu.center))
+                  PANTALLA.blit(texto_salir, texto_salir.get_rect(center=boton_salir.center))
+
     pygame.display.flip()
