@@ -51,6 +51,7 @@ tiempo_mensaje_robots = 0
 mensaje_tarjeta_falta = False
 tiempo_mensaje_tarjeta_falta = 0
 mostrar_menu_final = False
+game_over = False
 # ---------------- MAPA ----------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
 def generar_mapa():
     global mapa
@@ -158,10 +159,24 @@ while True:
 
                 mouse_pos = pygame.mouse.get_pos()
 
-                if mostrar_menu_final:
+                if mostrar_menu_final or game_over:
 
                     if boton_menu.collidepoint(mouse_pos):
-                       estado = "menu"
+
+                        numero_sala = 1
+                        jugador = Jugador()
+                        jugador.vida = 100
+                        balas.clear()
+                        enemigos.clear()
+
+                        jugador.tiene_tarjeta = False
+
+                        mostrar_menu_final = False
+                        game_over = False  
+
+                        generar_sala()
+                        menu_inicial()
+                       
 
                     if boton_salir.collidepoint(mouse_pos):
                         pygame.quit()
@@ -217,8 +232,9 @@ while True:
                             tiempo_mensaje_robots = pygame.time.get_ticks()
                             mostrar_menu_final = True
 
-    teclas = pygame.key.get_pressed()
-    jugador.mover(teclas, mapa)
+    if not game_over and not mostrar_menu_final:
+            teclas = pygame.key.get_pressed()
+            jugador.mover(teclas, mapa)
 
     if joystick:
         eje_x = joystick.get_axis(0)
@@ -240,10 +256,10 @@ while True:
         nx = jugador.x + dx
         ny = jugador.y + dy
 
-    if 0 <= nx < COLUMNAS and 0 <= ny < FILAS:
-        if mapa[ny][nx] == 0:
-            jugador.x = nx
-            jugador.y = ny
+        if 0 <= nx < COLUMNAS and 0 <= ny < FILAS:
+            if mapa[ny][nx] == 0:
+                jugador.x = nx
+                jugador.y = ny
 
     # ------------Cambio de sala------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
     if puerta and (jugador.x, jugador.y) == puerta:
@@ -267,6 +283,10 @@ while True:
             if jugador.invulnerable <= 0:
                 jugador.vida -= 5
                 jugador.invulnerable = 30
+
+                if jugador.vida <= 0:
+                    jugador.vida = 0
+                    game_over = True
     # --------------Mover balas---------------Marcos Antonio Alfonseca Guerrero/Matricula 23-SISN-2-013
     for bala in balas[:]:
         bala.mover()
@@ -367,7 +387,7 @@ while True:
                mensaje_tarjeta_falta = False
     
 
-               if mostrar_menu_final:
+        if mostrar_menu_final:
 
                   boton_menu = pygame.Rect(ANCHO//2 - 150, ALTO//2 - 40, 300, 60)
                   boton_salir = pygame.Rect(ANCHO//2 - 150, ALTO//2 + 40, 300, 60)
@@ -380,5 +400,23 @@ while True:
 
                   PANTALLA.blit(texto_menu, texto_menu.get_rect(center=boton_menu.center))
                   PANTALLA.blit(texto_salir, texto_salir.get_rect(center=boton_salir.center))
+
+        if game_over:
+
+                        texto = fuente.render("GAME OVER", True, ROJO)
+                        rect = texto.get_rect(center=(ANCHO//2, ALTO//2 - 120))
+                        PANTALLA.blit(texto, rect)
+
+                        boton_menu = pygame.Rect(ANCHO//2 - 150, ALTO//2 - 40, 300, 60)
+                        boton_salir = pygame.Rect(ANCHO//2 - 150, ALTO//2 + 40, 300, 60)
+
+                        pygame.draw.rect(PANTALLA, VERDE, boton_menu)
+                        pygame.draw.rect(PANTALLA, ROJO, boton_salir)
+
+                        texto_menu = fuente.render("VOLVER AL MENU", True, NEGRO)
+                        texto_salir = fuente.render("SALIR", True, NEGRO)
+
+                        PANTALLA.blit(texto_menu, texto_menu.get_rect(center=boton_menu.center))
+                        PANTALLA.blit(texto_salir, texto_salir.get_rect(center=boton_salir.center))
 
     pygame.display.flip()

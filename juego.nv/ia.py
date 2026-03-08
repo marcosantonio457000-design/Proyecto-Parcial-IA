@@ -170,8 +170,11 @@ def Astar(estado_inicial, estado_final, mapa):
         if not nodosgenerado:
             return [], totalnodos, 0
 
-        while nodoactual in nodosvisitados:
-            nodoactual = heapq.heappop(nodosgenerado)
+        while nodosgenerado and nodoactual in nodosvisitados:
+                nodoactual = heapq.heappop(nodosgenerado)
+
+        if not nodosgenerado and nodoactual in nodosvisitados:
+            return [], totalnodos, 0
 
     camino = []
     while nodoactual:
